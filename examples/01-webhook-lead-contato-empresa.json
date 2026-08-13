@@ -1,0 +1,70 @@
+{
+	"name": "Tavio CRM - Webhook externo para contato, empresa e lead",
+	"nodes": [
+		{
+			"parameters": { "httpMethod": "POST", "path": "lead-tavio", "options": {} },
+			"id": "bf0bdadc-2939-4b0e-9124-f9cb84cd3321",
+			"name": "Receber lead externo",
+			"type": "n8n-nodes-base.webhook",
+			"typeVersion": 2,
+			"position": [0, 0],
+			"webhookId": "7e47f2c3-6478-48a8-8b16-3493033cf934"
+		},
+		{
+			"parameters": {
+				"resource": "contact",
+				"operation": "upsert",
+				"fields": "={{ { firstName: $('Receber lead externo').item.json.body.firstName, lastName: $('Receber lead externo').item.json.body.lastName, emails: [{ email: $('Receber lead externo').item.json.body.email, primary: true }], phones: [], customData: {}, source: 'n8n-webhook' } }}",
+				"matchEmail": "={{$('Receber lead externo').item.json.body.email}}",
+				"idempotencyKey": "={{$('Receber lead externo').item.json.body.externalId + '-contact'}}",
+				"simplifyOutput": true
+			},
+			"id": "8751c45b-f814-4837-a2bb-af7601616521",
+			"name": "Criar ou atualizar contato",
+			"type": "n8n-nodes-tavio-crm.tavioCrm",
+			"typeVersion": 1,
+			"position": [260, 0]
+		},
+		{
+			"parameters": {
+				"resource": "organization",
+				"operation": "upsert",
+				"fields": "={{ { name: $('Receber lead externo').item.json.body.company.name, document: $('Receber lead externo').item.json.body.company.document, emails: [], phones: [], customData: {}, source: 'n8n-webhook' } }}",
+				"idempotencyKey": "={{$('Receber lead externo').item.json.body.externalId + '-organization'}}",
+				"simplifyOutput": true
+			},
+			"id": "32f9da69-b2cc-4433-be60-e3829d8a1d35",
+			"name": "Criar ou atualizar empresa",
+			"type": "n8n-nodes-tavio-crm.tavioCrm",
+			"typeVersion": 1,
+			"position": [520, 0]
+		},
+		{
+			"parameters": {
+				"resource": "lead",
+				"operation": "create",
+				"fields": "={{ { title: $('Receber lead externo').item.json.body.title, contactId: $('Criar ou atualizar contato').item.json.id, organizationId: $('Criar ou atualizar empresa').item.json.id, currency: 'BRL', source: 'n8n-webhook', customData: { externalId: $('Receber lead externo').item.json.body.externalId }, tagIds: [] } }}",
+				"idempotencyKey": "={{$('Receber lead externo').item.json.body.externalId + '-lead'}}",
+				"simplifyOutput": true
+			},
+			"id": "3cc62adf-fd63-4616-9c0d-58995dc85e4c",
+			"name": "Criar lead",
+			"type": "n8n-nodes-tavio-crm.tavioCrm",
+			"typeVersion": 1,
+			"position": [780, 0]
+		}
+	],
+	"connections": {
+		"Receber lead externo": {
+			"main": [[{ "node": "Criar ou atualizar contato", "type": "main", "index": 0 }]]
+		},
+		"Criar ou atualizar contato": {
+			"main": [[{ "node": "Criar ou atualizar empresa", "type": "main", "index": 0 }]]
+		},
+		"Criar ou atualizar empresa": {
+			"main": [[{ "node": "Criar lead", "type": "main", "index": 0 }]]
+		}
+	},
+	"active": false,
+	"settings": { "executionOrder": "v1" }
+}

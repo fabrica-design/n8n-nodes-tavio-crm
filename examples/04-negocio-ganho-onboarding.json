@@ -1,0 +1,34 @@
+{
+	"name": "Tavio CRM - Negócio ganho inicia onboarding",
+	"nodes": [
+		{
+			"parameters": { "events": ["deal.won"] },
+			"id": "44982826-506d-4f78-965e-43a21369636a",
+			"name": "Negócio ganho",
+			"type": "n8n-nodes-tavio-crm.tavioCrmTrigger",
+			"typeVersion": 1,
+			"position": [0, 0]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "https://onboarding.example.com/hooks/tavio",
+				"sendBody": true,
+				"contentType": "raw",
+				"rawContentType": "application/json",
+				"body": "={{ JSON.stringify({ eventId: $json.eventId, dealId: $json.resourceId, occurredAt: $json.occurredAt }) }}",
+				"options": {}
+			},
+			"id": "b24a3e3f-2934-4d6b-a907-f40f43a8f975",
+			"name": "Iniciar onboarding",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [300, 0]
+		}
+	],
+	"connections": {
+		"Negócio ganho": { "main": [[{ "node": "Iniciar onboarding", "type": "main", "index": 0 }]] }
+	},
+	"active": false,
+	"settings": { "executionOrder": "v1" }
+}
