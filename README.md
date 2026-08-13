@@ -8,13 +8,15 @@ com validação HMAC-SHA256.
 
 | Componente      | Versão validada                     |
 | --------------- | ----------------------------------- |
-| n8n self-hosted | 2.29.1                              |
-| `n8n-workflow`  | 2.29.1                              |
+| n8n self-hosted | 2.34.5                              |
+| `n8n-workflow`  | 2.34.2 (usado pelo n8n 2.34.5)      |
 | Node.js         | 22.22 ou superior                   |
 | Tavio CRM API   | `/api/v1` do monorepo em 13/08/2026 |
 
 O pacote usa somente `n8n-workflow` como peer dependency e não inclui runtime
-externo. A implementação foi criada e validada com `@n8n/node-cli`.
+externo. O peer permanece aberto para usar a cópia fornecida pelo n8n; os tipos
+e testes de desenvolvimento ficam fixados em `n8n-workflow` 2.34.2, a versão
+resolvida pelo n8n 2.34.5. A implementação foi validada com `@n8n/node-cli`.
 
 ## Credenciais
 
@@ -148,33 +150,37 @@ credenciais.
 ## Docker e EasyPanel
 
 O `Dockerfile` versionado gera o pacote em um estágio Node 22 Alpine e o instala
-em uma imagem imutável do n8n 2.29.1:
+por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.34.5`:
 
 ```bash
-docker build -t n8n-tavio-crm:0.1.0 .
+docker build -t n8n-tavio-crm:2.34.5-0.1.0 .
 ```
 
-Se o registry principal estiver temporariamente limitado, o mesmo build pode
-usar o espelho oficial da imagem sem alterar o Dockerfile:
+Se `docker.n8n.io` responder HTTP 429, preserve a mesma versão e use a imagem
+espelhada no Docker Hub por meio do argumento `N8N_IMAGE`:
 
 ```bash
-docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.29.1 -t n8n-tavio-crm:0.1.0 .
+docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.1.0 .
 ```
 
 No EasyPanel, use este repositório e o `Dockerfile` da raiz para construir uma
-imagem própria. Aponte o serviço principal do n8n e todos os workers para a
-mesma imagem. Preserve as variáveis, banco e volumes já usados pelo n8n; não é
-necessário expor uma porta adicional. Não adicione a chave Tavio à imagem:
-cadastre-a como credencial pela UI do n8n.
+imagem própria. Aponte o serviço principal e todos os workers n8n para a mesma
+imagem imutável `n8n-tavio-crm:2.34.5-0.1.0`; uma mistura de versões entre main
+e workers não é suportada. Preserve integralmente o banco, os volumes, o
+domínio, todas as variáveis existentes e, em especial, `N8N_ENCRYPTION_KEY`.
+Não recrie nem limpe esses recursos durante a troca da imagem. Não é necessário
+expor porta adicional. Não adicione a chave Tavio à imagem: cadastre-a como
+credencial pela UI do n8n.
 
 A imagem define `N8N_CUSTOM_EXTENSIONS` para um caminho imutável fora de
 `/home/node/.n8n`. Assim, o volume persistente do n8n não oculta o pacote e não
 é necessário executar `npm install` no startup.
 
 Faça um workflow de smoke antes de promover. Para atualizar, faça checkout do
-commit desejado, construa uma nova tag e aplique-a ao main e aos workers. Para
-rollback, reaplique a tag anterior nos mesmos serviços, sem alterar nem apagar
-o banco ou os volumes do n8n.
+commit desejado, construa uma nova tag imutável e aplique exatamente a mesma
+imagem ao main e aos workers. Para rollback, reaplique a tag imutável anterior
+nos mesmos serviços, sem alterar nem apagar banco, volumes, domínio, variáveis
+ou encryption key. Nunca use `latest` como imagem-base ou tag de release.
 
 ## Exemplos importáveis
 

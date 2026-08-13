@@ -1,4 +1,4 @@
-ARG N8N_IMAGE=docker.n8n.io/n8nio/n8n:2.29.1
+ARG N8N_IMAGE=docker.n8n.io/n8nio/n8n:2.34.5
 FROM node:22-alpine AS builder
 
 WORKDIR /source
