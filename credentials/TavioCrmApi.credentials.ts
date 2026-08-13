@@ -8,10 +8,7 @@ import type {
 export class TavioCrmApi implements ICredentialType {
 	name = 'tavioCrmApi';
 	displayName = 'Tavio CRM API';
-	icon = {
-		light: 'file:../nodes/TavioCrm/tavio-crm.svg',
-		dark: 'file:../nodes/TavioCrm/tavio-crm.dark.svg',
-	} as const;
+	icon = 'file:../nodes/TavioCrm/tavio-crm.png' as const;
 	documentationUrl = 'https://github.com/fabrica-design/n8n-nodes-tavio-crm#credenciais';
 
 	properties: INodeProperties[] = [

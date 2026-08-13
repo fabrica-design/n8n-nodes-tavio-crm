@@ -32,6 +32,7 @@
 		"typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
 		"test": "vitest run",
 		"test:coverage": "vitest run --coverage",
+		"verify:package": "npm run build && node scripts/verify-package.mjs",
 		"release": "n8n-node release",
 		"prepublishOnly": "n8n-node prerelease"
 	},
@@ -39,7 +40,7 @@
 		"dist/credentials/**/*.js",
 		"dist/nodes/**/*.js",
 		"dist/nodes/**/*.json",
-		"dist/nodes/**/*.svg"
+		"dist/nodes/**/*.png"
 	],
 	"n8n": {
 		"n8nNodesApiVersion": 1,
