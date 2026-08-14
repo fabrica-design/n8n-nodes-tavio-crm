@@ -16,19 +16,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 'lts/*'
-          cache: '{{packageManager.name}}'
+          node-version: '22.22.0'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: '{{packageManager.name}} {{packageManager.installCommand}}'
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Run lint
-        run: '{{packageManager.name}} run lint'
+        run: npm run lint
 
-      - name: Run build
-        run: '{{packageManager.name}} run build'
+      - name: Run strict TypeScript checks
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify distributable package
+        run: npm run verify:package
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
