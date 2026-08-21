@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const expectedAsset = 'dist/nodes/TavioCrm/tavio-crm.png';
-const expectedHash = 'c2776887b2748652841baa2abc01936d4dee19504f70795e17eaadae799661c5';
+const expectedAsset = 'dist/nodes/TavioCrm/tavio-crm-icon.png';
+const expectedHash = 'ddb71bf763a7574b9de4e0b00d573a7a6c992ec5120ab44310c1a406cf59c7ac';
 const packageRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const destination = mkdtempSync(join(tmpdir(), 'tavio-crm-pack-'));
 const npmCli = process.env.npm_execpath;
@@ -29,6 +29,10 @@ try {
 	assert(
 		metadata.files.some(({ path }) => path === expectedAsset),
 		`${expectedAsset} não foi incluído no pacote`,
+	);
+	assert(
+		!metadata.files.some(({ path }) => path === 'dist/nodes/TavioCrm/tavio-crm.png'),
+		'o ícone antigo não pode ser incluído no pacote',
 	);
 
 	const archive = join(destination, metadata.filename);

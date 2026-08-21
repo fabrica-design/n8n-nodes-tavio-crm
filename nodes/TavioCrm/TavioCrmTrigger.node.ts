@@ -34,7 +34,7 @@ export class TavioCrmTrigger implements INodeType {
 		displayName: 'Tavio CRM Trigger',
 		name: 'tavioCrmTrigger',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg, @n8n/community-nodes/icon-prefer-themed-variants -- The official round Tavio asset is a theme-neutral PNG.
-		icon: 'file:tavio-crm.png',
+		icon: 'file:tavio-crm-icon.png',
 		group: ['trigger'],
 		version: 1,
 		subtitle: '={{$parameter["events"].join(", ")}}',

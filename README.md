@@ -153,19 +153,19 @@ O `Dockerfile` versionado gera o pacote em um estágio Node 22 Alpine e o instal
 por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.34.5`:
 
 ```bash
-docker build -t n8n-tavio-crm:2.34.5-0.1.0 .
+docker build -t n8n-tavio-crm:2.34.5-0.1.1 .
 ```
 
 Se `docker.n8n.io` responder HTTP 429, preserve a mesma versão e use a imagem
 espelhada no Docker Hub por meio do argumento `N8N_IMAGE`:
 
 ```bash
-docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.1.0 .
+docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.1.1 .
 ```
 
 No EasyPanel, use este repositório e o `Dockerfile` da raiz para construir uma
 imagem própria. Aponte o serviço principal e todos os workers n8n para a mesma
-imagem imutável `n8n-tavio-crm:2.34.5-0.1.0`; uma mistura de versões entre main
+imagem imutável `n8n-tavio-crm:2.34.5-0.1.1`; uma mistura de versões entre main
 e workers não é suportada. Preserve integralmente o banco, os volumes, o
 domínio, todas as variáveis existentes e, em especial, `N8N_ENCRYPTION_KEY`.
 Não recrie nem limpe esses recursos durante a troca da imagem. Não é necessário

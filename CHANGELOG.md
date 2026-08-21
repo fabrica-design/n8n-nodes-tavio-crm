@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 — 2026-08-21
+
+- Substitui o ícone antigo pelo PNG oficial do produto Tavio CRM.
+- Nenhuma alteração de contrato, operação ou comportamento do node.
+
 ## 0.1.0 — 2026-08-13
 
 - Primeira versão privada do nó regular Tavio CRM.

@@ -53,7 +53,7 @@ export class TavioCrm implements INodeType {
 		displayName: 'Tavio CRM',
 		name: 'tavioCrm',
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg, @n8n/community-nodes/icon-prefer-themed-variants -- The official round Tavio asset is a theme-neutral PNG.
-		icon: 'file:tavio-crm.png',
+		icon: 'file:tavio-crm-icon.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
