@@ -1,4 +1,4 @@
-# n8n-nodes-tavio-crm
+# n8n-nodes-tavio-crm 0.2.0
 
 Pacote privado oficial de integração entre o [n8n](https://n8n.io/) e o Tavio
 CRM. Inclui um nó regular para operações comerciais e um trigger de webhooks
@@ -46,25 +46,37 @@ integração.
 
 ## Operações
 
-| Recurso   | Operações                                                                                           |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| Contato   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                |
-| Empresa   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                |
-| Lead      | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Arquivar, Converter                               |
-| Negócio   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Mover, Ganho, Perdido, Reabrir, Adicionar Produto |
-| Atividade | Criar, Obter, Obter Muitas, Atualizar, Concluir                                                     |
-| Nota      | Criar                                                                                               |
-| Produto   | Criar, Obter Muitos, Atualizar                                                                      |
-| Funil     | Obter Muitos, Obter Etapas                                                                          |
-| Tag       | Obter Muitas, Adicionar ao Item, Remover do Item                                                    |
-| Avançado  | Requisição customizada restrita à origem da credencial                                              |
+| Recurso   | Operações                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Contato   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                     |
+| Empresa   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                     |
+| Lead      | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Arquivar, Restaurar, Qualificar, Desqualificar, Converter              |
+| Negócio   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Mover, Ganho, Perdido, Reabrir, Arquivar, Restaurar, Adicionar Produto |
+| Atividade | Criar, Obter, Obter Muitas, Atualizar, Concluir                                                                          |
+| Nota      | Criar                                                                                                                    |
+| Produto   | Criar, Obter, Obter Muitos, Atualizar                                                                                    |
+| Funil     | Obter Muitos, Obter Etapas                                                                                               |
+| Tag       | Obter Muitas, Adicionar ao Item, Remover do Item                                                                         |
+| Avançado  | Requisição customizada restrita à origem da credencial                                                                   |
 
 Funis, etapas, produtos, tags, usuários e equipes são carregados dinamicamente.
 Listagens oferecem paginação automática, limite e saída simplificada ou bruta.
 Cada item de saída mantém `pairedItem`; **Continue On Fail** usa o contrato
 nativo do n8n.
 
-### Campos JSON
+### Versões e campos visuais v2
+
+Nodes novos usam automaticamente o **typeVersion 2**. Contato, empresa, lead,
+negócio, atividade e produto agora exibem campos visuais tipados, com expressões
+do n8n e seletores dinâmicos de contatos, empresas, funis, etapas, produtos,
+usuários, equipes, tags e campos personalizados. O usuário não precisa conhecer
+o JSON da API para criar ou atualizar registros.
+
+Nodes existentes da versão 0.1.1 continuam carregando como **typeVersion 1**. A
+v1 preserva **Campos (JSON)**, a chave de idempotência legada, os nomes internos e
+a serialização dos workflows existentes. Não há migração silenciosa de valores.
+
+### Campos JSON (typeVersion 1)
 
 Operações de escrita recebem os campos documentados pela API no parâmetro
 **Campos (JSON)**. Expressões n8n são aceitas. Exemplos:
@@ -102,6 +114,15 @@ Aceita método, caminho, query e corpo JSON. O caminho deve começar com `/` e �
 resolvido contra a URL da credencial. URLs absolutas, protocol-relative e
 tentativas de trocar a origem são rejeitadas antes do HTTP. A autenticação é
 sempre aplicada pela credencial e nunca aparece na saída.
+
+### Idempotência na v2
+
+Nas operações de escrita da v2, **Idempotência: Automática** é o padrão. A chave
+determinística considera workflow, node, execução, item, recurso e operação e é
+reutilizada em retries da mesma execução/item, sem ser registrada em logs. Em
+**Opções avançadas**, é possível escolher uma chave personalizada ou desativar o
+cabeçalho quando o contrato permitir. `externalId` continua sendo a deduplicação
+de negócio para eventos de execuções diferentes e não substitui a chave HTTP.
 
 ## Gatilho webhook
 
@@ -147,25 +168,34 @@ Instale o `.tgz` resultante no diretório de community nodes da instância e
 reinicie main e workers. O tarball não contém testes, fontes temporárias ou
 credenciais.
 
+## Exemplos rápidos da v2
+
+- **Criar contato a partir de webhook:** use `Contato → Criar`, Nome `={{$json.nome}}`, E-mail `={{$json.email}}` e Telefone `={{$json.telefone}}`.
+- **Criar ou atualizar contato:** use `Contato → Criar ou Atualizar`, escolha `External ID` e informe `={{$json.id_cliente}}`.
+- **Criar lead:** use `Lead → Criar`, Título, Contato, Empresa, Valor e Moeda; a conversão seleciona Funil e depois Etapa.
+- **Mover negócio:** use `Negócio → Mover`, selecione Negócio, Funil e Etapa e informe a versão retornada pelo CRM.
+- **Concluir atividade:** use `Atividade → Concluir`, selecione a Atividade e informe o resultado opcional.
+- **Requisição avançada:** use somente para contratos não modelados, com Método, Caminho relativo, Query JSON e Corpo JSON.
+
 ## Docker e EasyPanel
 
 O `Dockerfile` versionado gera o pacote em um estágio Node 22 Alpine e o instala
 por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.34.5`:
 
 ```bash
-docker build -t n8n-tavio-crm:2.34.5-0.1.1 .
+docker build -t n8n-tavio-crm:2.34.5-0.2.0 .
 ```
 
 Se `docker.n8n.io` responder HTTP 429, preserve a mesma versão e use a imagem
 espelhada no Docker Hub por meio do argumento `N8N_IMAGE`:
 
 ```bash
-docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.1.1 .
+docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.2.0 .
 ```
 
 No EasyPanel, use este repositório e o `Dockerfile` da raiz para construir uma
 imagem própria. Aponte o serviço principal e todos os workers n8n para a mesma
-imagem imutável `n8n-tavio-crm:2.34.5-0.1.1`; uma mistura de versões entre main
+imagem imutável `n8n-tavio-crm:2.34.5-0.2.0`; uma mistura de versões entre main
 e workers não é suportada. Preserve integralmente o banco, os volumes, o
 domínio, todas as variáveis existentes e, em especial, `N8N_ENCRYPTION_KEY`.
 Não recrie nem limpe esses recursos durante a troca da imagem. Não é necessário
