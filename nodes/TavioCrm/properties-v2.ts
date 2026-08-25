@@ -550,8 +550,6 @@ export const tavioCrmV2Properties: INodeProperties[] = [
 		'contactPreference',
 		show('contact', ['create', 'update', 'upsert']),
 	),
-	customFields,
-	tags,
 	locator(
 		'Responsável',
 		'ownerId',
@@ -609,9 +607,6 @@ export const tavioCrmV2Properties: INodeProperties[] = [
 	text('Observações', 'notes', show('organization', ['create', 'update', 'upsert']), {
 		typeOptions: { rows: 4 },
 	}),
-	customFields,
-	tags,
-
 	// Lead.
 	text('Título', 'title', show('lead', ['create', 'update']), {
 		required: true,
@@ -638,8 +633,6 @@ export const tavioCrmV2Properties: INodeProperties[] = [
 		typeOptions: { rows: 4 },
 	}),
 	text('Data prevista', 'expectedAt', show('lead', ['create', 'update']), { type: 'dateTime' }),
-	customFields,
-	tags,
 	text('Motivo', 'reason', show('lead', 'disqualify'), { required: true }),
 	text('Observação', 'note', show('lead', 'disqualify'), { typeOptions: { rows: 3 } }),
 	locator('Funil', 'pipelineId', 'getPipelines', show('lead', 'convert')),
@@ -676,8 +669,6 @@ export const tavioCrmV2Properties: INodeProperties[] = [
 	}),
 	text('Origem', 'source', show('deal', ['create', 'update'])),
 	text('Observações', 'notes', show('deal', ['create', 'update']), { typeOptions: { rows: 4 } }),
-	customFields,
-	tags,
 	text('Descrição do produto', 'itemDescription', show('deal', 'addProduct'), { required: true }),
 	number('Quantidade', 'quantity', show('deal', 'addProduct'), {
 		required: true,
@@ -775,6 +766,8 @@ export const tavioCrmV2Properties: INodeProperties[] = [
 		default: true,
 		displayOptions: show('product', 'update'),
 	},
+	// Coleções compartilhadas entram uma única vez. Repeti-las dentro de cada
+	// grupo de recurso fazia todas as cópias aparecerem ao mesmo tempo na v2.
 	customFields,
 	tags,
 

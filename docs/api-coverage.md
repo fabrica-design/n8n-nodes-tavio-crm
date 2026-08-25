@@ -1,8 +1,29 @@
 # Matriz auditada da API Tavio CRM
 
-## Cobertura da interface visual v2 (23/08/2026)
+## Cobertura da interface visual v3 (25/08/2026)
 
-| Recurso             | Operações expostas na v2                                                                                           | Payload visual principal                                                                    | Seletores/observações                            |
+A v3 é o padrão para nodes novos. A v1 permanece legada e a v2 permanece
+executável para workflows salvos; não houve migração de parâmetros persistidos.
+
+### Diagnóstico e correção de UX
+
+| Sintoma                             | Causa comprovada                                                                                                       | Correção 0.2.1                                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Tags repetidas                      | O mesmo objeto `tagIds`, com `displayOptions` amplo, era concatenado após cada grupo de recurso na v2.                 | A v2 insere a definição uma única vez; a v3 mantém uma única coleção no fluxo aplicável.           |
+| Campos personalizados repetidos     | O mesmo objeto `customFields` era concatenado nas mesmas posições da v2.                                               | A v2 insere a definição uma única vez; a v3 usa uma única coleção contextual.                      |
+| Ordem e formulário longo de negócio | Os campos compartilhados eram inseridos antes dos grupos seguintes, não pela operação de negócio.                      | A v3 inicia por Título, associação e Campos adicionais, sem mover parâmetros de workflows v2.      |
+| `Renovação Acme` e `25000.00`       | São `placeholder` da descrição v2, não `default`, fixture, estado ou resposta da API.                                  | A v3 não os declara; valores salvos continuam intocados na v2.                                     |
+| `[object Object]` em seletores      | Erros HTTP brutos eram relançados pelo carregador e serializados pelo editor.                                          | Erros 401/403/404/422/5xx são convertidos em `Error` seguro e acionável.                           |
+| Tags falhando                       | O carregador derivava `entity=TAG` para o recurso Tag; o contrato aceita CONTACT, ORGANIZATION, LEAD, DEAL ou PRODUCT. | O carregador deriva a entidade do item (`entityType` para operação Tag) e usa somente enum válido. |
+| Resource locators sem busca         | As propriedades declaravam `searchListMethod`, mas o node só expunha `loadOptions`.                                    | A implementação expõe `methods.listSearch`, paginação por `cursor` e `limit=100`.                  |
+
+Campos adicionais de `Negócio → Criar`: valor, moeda, funil, etapa, data prevista
+de fechamento, responsável, equipe, probabilidade, origem, ID externo,
+observações, Tags e Campos personalizados. Eles são todos campos existentes no
+contrato de criação de negócio. Funil e Etapa são validados antes do HTTP; a API
+continua sendo a autoridade para os demais tipos e permissões.
+
+| Recurso             | Operações expostas nas v2/v3                                                                                       | Payload visual principal                                                                    | Seletores/observações                            |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Contato             | criar, obter, listar, pesquisar, atualizar, upsert, arquivar, restaurar                                            | nome, e-mail, telefone, empresa, responsável, equipe, origem, observações, tags             | campos personalizados filtrados por `CONTACT`    |
 | Empresa             | criar, obter, listar, pesquisar, atualizar, upsert, arquivar, restaurar                                            | nome, documento, e-mail, telefone, website, endereço, responsável, equipe                   | contrato não inventa CNPJ/CPF                    |

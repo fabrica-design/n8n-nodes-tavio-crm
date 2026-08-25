@@ -3,6 +3,7 @@ import type {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodeListSearchResult,
 	INodePropertyOptions,
 	INodeType,
 	INodeTypeBaseDescription,
@@ -10,6 +11,7 @@ import type {
 	IHttpRequestMethods,
 	JsonObject,
 } from 'n8n-workflow';
+/* eslint-disable n8n-nodes-base/node-execute-block-wrong-error-thrown -- Load-option helpers normalize their errors with safelyLoadOptions before n8n renders them. */
 import {
 	NodeApiError,
 	NodeConnectionTypes,
@@ -17,6 +19,7 @@ import {
 	VersionedNodeType,
 } from 'n8n-workflow';
 import { tavioCrmV2Properties } from './properties-v2';
+import { tavioCrmV3Properties } from './properties-v3';
 import { tavioCrmProperties } from './properties';
 import {
 	asDataObject,
@@ -26,6 +29,7 @@ import {
 	tavioApiRequest,
 	unwrapResponse,
 	type TavioFunctions,
+	type TavioPage,
 } from './transport';
 
 const endpoints: Record<string, string> = {
@@ -60,6 +64,137 @@ async function loadArray(
 	return [];
 }
 
+function errorStatus(error: unknown): number | undefined {
+	if (typeof error !== 'object' || error === null) return undefined;
+	const candidate = error as {
+		statusCode?: unknown;
+		httpCode?: unknown;
+		response?: { status?: unknown; statusCode?: unknown };
+	};
+	for (const value of [
+		candidate.statusCode,
+		candidate.httpCode,
+		candidate.response?.status,
+		candidate.response?.statusCode,
+	]) {
+		if (typeof value === 'number') return value;
+	}
+	return undefined;
+}
+
+export function formatLoadOptionsError(error: unknown): Error {
+	switch (errorStatus(error)) {
+		case 401:
+			return new Error(
+				'Não foi possível carregar opções: a credencial do Tavio CRM é inválida ou expirou.',
+			);
+		case 403:
+			return new Error(
+				'Não foi possível carregar opções: a credencial não possui o escopo necessário.',
+			);
+		case 404:
+			return new Error(
+				'Não foi possível carregar opções: verifique a URL da API ou a disponibilidade do recurso.',
+			);
+		case 422:
+			return new Error(
+				'Não foi possível carregar opções: a configuração do seletor é inválida para este recurso.',
+			);
+		default:
+			return new Error(
+				'Não foi possível carregar opções: API indisponível do Tavio CRM. Tente novamente.',
+			);
+	}
+}
+
+async function safelyLoadOptions<T>(action: () => Promise<T>): Promise<T> {
+	try {
+		return await action();
+	} catch (error) {
+		throw formatLoadOptionsError(error);
+	}
+}
+
+function entityForCurrentResource(context: ILoadOptionsFunctions): string {
+	const resource = getParameterString(context, 'resource', undefined, 'contact');
+	const source =
+		resource === 'tag' ? getParameterString(context, 'entityType', undefined, 'contact') : resource;
+	const entityByResource: Record<string, string> = {
+		contact: 'CONTACT',
+		organization: 'ORGANIZATION',
+		lead: 'LEAD',
+		deal: 'DEAL',
+		product: 'PRODUCT',
+	};
+	const entity = entityByResource[source];
+	if (!entity) throw new Error('Recurso sem entidade compatível para este seletor.');
+	return entity;
+}
+
+async function listPage(
+	this: ILoadOptionsFunctions,
+	path: string,
+	label: (item: IDataObject) => string,
+	filter?: string,
+	paginationToken?: string,
+): Promise<INodeListSearchResult> {
+	const response = await tavioApiRequest.call(this, 'GET', path, undefined, {
+		limit: 100,
+		...(filter ? { search: filter } : {}),
+		...(paginationToken ? { cursor: paginationToken } : {}),
+	});
+	const page = unwrapResponse<TavioPage>(response);
+	if (!page || !Array.isArray(page.items))
+		throw new TypeError('Resposta de paginação incompatível');
+	return {
+		results: toOptions(page.items, label),
+		...(page.nextCursor ? { paginationToken: page.nextCursor } : {}),
+	};
+}
+
+async function getPipelinesOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	return toOptions(await loadArray.call(this, '/pipelines'), (item) => String(item.name));
+}
+
+async function getStagesOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	const pipelines = await loadArray.call(this, '/pipelines');
+	const selectedPipeline = getParameterString(this, 'pipelineId', undefined, '');
+	return pipelines.flatMap((pipeline) => {
+		if (selectedPipeline && String(pipeline.id) !== selectedPipeline) return [];
+		const stages = Array.isArray(pipeline.stages) ? (pipeline.stages as IDataObject[]) : [];
+		return toOptions(stages, (stage) => `${String(pipeline.name)} — ${String(stage.name)}`);
+	});
+}
+
+async function getTagsOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	return toOptions(
+		await loadArray.call(this, '/tags', { entity: entityForCurrentResource(this) }),
+		(item) => String(item.name),
+	);
+}
+
+async function getCustomFieldsOptions(
+	this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+	return toOptions(
+		await loadArray.call(this, '/custom-fields', { entity: entityForCurrentResource(this) }),
+		(item) => String(item.name),
+	);
+}
+
+async function getUsersOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	return toOptions(await loadArray.call(this, '/workspace/members'), (item) => {
+		const user = (item.user ?? {}) as IDataObject;
+		return user.email
+			? `${String(user.name)} (${String(user.email)})`
+			: String(user.name ?? item.id);
+	});
+}
+
+async function getTeamsOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	return toOptions(await loadArray.call(this, '/workspace/teams'), (item) => String(item.name));
+}
+
 export class TavioCrmV1 implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Tavio CRM',
@@ -81,72 +216,137 @@ export class TavioCrmV1 implements INodeType {
 	methods = {
 		loadOptions: {
 			async getPipelines(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/pipelines'), (item) => String(item.name));
+				return safelyLoadOptions(() => getPipelinesOptions.call(this));
 			},
 			async getStages(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const pipelines = await loadArray.call(this, '/pipelines');
-				const selectedPipeline = getParameterString(this, 'pipelineId', undefined, '');
-				return pipelines.flatMap((pipeline) => {
-					if (selectedPipeline && String(pipeline.id) !== selectedPipeline) return [];
-					const stages = Array.isArray(pipeline.stages) ? (pipeline.stages as IDataObject[]) : [];
-					return toOptions(stages, (stage) => `${String(pipeline.name)} — ${String(stage.name)}`);
-				});
+				return safelyLoadOptions(() => getStagesOptions.call(this));
 			},
 			async getProducts(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const { items } = await getMany.call(this, '/products', {}, true, 100);
-				return toOptions(items, (item) =>
-					item.code ? `${String(item.name)} (${String(item.code)})` : String(item.name),
+				return safelyLoadOptions(
+					async () =>
+						(
+							await listPage.call(this, '/products', (item) =>
+								item.code ? `${String(item.name)} (${String(item.code)})` : String(item.name),
+							)
+						).results,
 				);
 			},
 			async getTags(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const resource = getParameterString(this, 'resource', undefined, 'contact');
-				const entity = resource === 'organization' ? 'ORGANIZATION' : resource.toUpperCase();
-				return toOptions(await loadArray.call(this, '/tags', { entity }), (item) =>
-					String(item.name),
-				);
+				return safelyLoadOptions(() => getTagsOptions.call(this));
 			},
 			async getUsers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/workspace/members'), (item) => {
-					const user = (item.user ?? {}) as IDataObject;
-					return user.email ? `${String(user.name)} (${String(user.email)})` : String(user.name);
-				});
+				return safelyLoadOptions(() => getUsersOptions.call(this));
 			},
 			async getTeams(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/workspace/teams'), (item) =>
-					String(item.name),
-				);
+				return safelyLoadOptions(() => getTeamsOptions.call(this));
 			},
 			async getCustomFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const resource = getParameterString(this, 'resource', undefined, 'contact');
-				const entity = resource === 'organization' ? 'ORGANIZATION' : resource.toUpperCase();
-				return toOptions(await loadArray.call(this, '/custom-fields', { entity }), (item) =>
-					String(item.name),
-				);
+				return safelyLoadOptions(() => getCustomFieldsOptions.call(this));
 			},
 			async getContacts(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/contacts'), (item) =>
-					String(item.name ?? item.firstName ?? item.id),
+				return safelyLoadOptions(
+					async () =>
+						(
+							await listPage.call(this, '/contacts', (item) =>
+								String(item.fullName ?? item.firstName ?? item.id),
+							)
+						).results,
 				);
 			},
 			async getOrganizations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/organizations'), (item) =>
-					String(item.name ?? item.id),
+				return safelyLoadOptions(
+					async () =>
+						(await listPage.call(this, '/organizations', (item) => String(item.name ?? item.id)))
+							.results,
 				);
 			},
 			async getLeads(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/leads'), (item) =>
-					String(item.title ?? item.id),
+				return safelyLoadOptions(
+					async () =>
+						(await listPage.call(this, '/leads', (item) => String(item.title ?? item.id))).results,
 				);
 			},
 			async getDeals(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/deals'), (item) =>
-					String(item.title ?? item.id),
+				return safelyLoadOptions(
+					async () =>
+						(await listPage.call(this, '/deals', (item) => String(item.title ?? item.id))).results,
 				);
 			},
 			async getActivities(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				return toOptions(await loadArray.call(this, '/activities'), (item) =>
-					String(item.title ?? item.id),
+				return safelyLoadOptions(
+					async () =>
+						(await listPage.call(this, '/activities', (item) => String(item.title ?? item.id)))
+							.results,
 				);
+			},
+		},
+		listSearch: {
+			async getContacts(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(
+						this,
+						'/contacts',
+						(item) => String(item.fullName ?? item.firstName ?? item.id),
+						filter,
+						token,
+					),
+				);
+			},
+			async getOrganizations(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(
+						this,
+						'/organizations',
+						(item) => String(item.name ?? item.id),
+						filter,
+						token,
+					),
+				);
+			},
+			async getLeads(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(this, '/leads', (item) => String(item.title ?? item.id), filter, token),
+				);
+			},
+			async getDeals(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(this, '/deals', (item) => String(item.title ?? item.id), filter, token),
+				);
+			},
+			async getActivities(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(
+						this,
+						'/activities',
+						(item) => String(item.title ?? item.id),
+						filter,
+						token,
+					),
+				);
+			},
+			async getProducts(this: ILoadOptionsFunctions, filter?: string, token?: string) {
+				return safelyLoadOptions(() =>
+					listPage.call(
+						this,
+						'/products',
+						(item) =>
+							item.code ? `${String(item.name)} (${String(item.code)})` : String(item.name),
+						filter,
+						token,
+					),
+				);
+			},
+			async getPipelines(this: ILoadOptionsFunctions) {
+				return safelyLoadOptions(async () => ({ results: await getPipelinesOptions.call(this) }));
+			},
+			async getStages(this: ILoadOptionsFunctions) {
+				return safelyLoadOptions(async () => ({ results: await getStagesOptions.call(this) }));
+			},
+			async getUsers(this: ILoadOptionsFunctions) {
+				return safelyLoadOptions(async () => ({ results: await getUsersOptions.call(this) }));
+			},
+			async getTeams(this: ILoadOptionsFunctions) {
+				return safelyLoadOptions(async () => ({ results: await getTeamsOptions.call(this) }));
 			},
 		},
 	};
@@ -284,6 +484,15 @@ async function executeItem(this: IExecuteFunctions, itemIndex: number): Promise<
 		requestPath = `${path}/${id}`;
 	} else if (operation === 'create' || operation === 'upsert') {
 		body = enrichedBody.call(this, itemIndex, resource);
+		if (isV3(this) && resource === 'deal' && operation === 'create') {
+			if (!body.pipelineId || !body.stageId) {
+				throw new NodeOperationError(
+					this.getNode(),
+					'Adicione Funil e Etapa em Campos adicionais para criar o negócio.',
+					{ itemIndex },
+				);
+			}
+		}
 		requestPath = operation === 'upsert' ? `${path}/upsert` : path;
 		if (resource === 'contact' && operation === 'upsert') {
 			const upsertBy = this.getNodeParameter('upsertBy', itemIndex, 'email') as string;
@@ -379,7 +588,7 @@ function enrichedBody(this: IExecuteFunctions, itemIndex: number, resource: stri
 	const body = isV2(this)
 		? buildTypedBody.call(this, itemIndex, resource)
 		: parseJsonObject(this.getNodeParameter('fields', itemIndex, '{}'), 'Campos');
-	const customFields = this.getNodeParameter('customFields', itemIndex, {}) as IDataObject;
+	const customFields = parameterValue(this, 'customFields', itemIndex, {}) as IDataObject;
 	const values = Array.isArray(customFields.values) ? (customFields.values as IDataObject[]) : [];
 	if (values.length > 0) {
 		const customData =
@@ -464,7 +673,7 @@ function getParameterString(
 	itemIndex: number | undefined,
 	fallback = '',
 ): string {
-	const value = rawParameter(context, name, itemIndex, fallback);
+	const value = parameterValue(context, name, itemIndex, fallback);
 	if (typeof value === 'object' && value !== null && 'value' in value) {
 		return String((value as { value?: unknown }).value ?? fallback);
 	}
@@ -479,12 +688,38 @@ function isV2(context: IExecuteFunctions): boolean {
 	return context.getNode().typeVersion >= 2;
 }
 
+function isV3(context: TavioFunctions): boolean {
+	return context.getNode().typeVersion >= 3;
+}
+
+function additionalFields(
+	context: TavioFunctions,
+	itemIndex: number | undefined,
+): IDataObject | undefined {
+	if (!isV3(context)) return undefined;
+	const value = rawParameter(context, 'additionalFields', itemIndex, undefined);
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+		? (value as IDataObject)
+		: undefined;
+}
+
+function parameterValue(
+	context: TavioFunctions,
+	name: string,
+	itemIndex: number | undefined,
+	fallback: unknown = '',
+): unknown {
+	const values = additionalFields(context, itemIndex);
+	if (values && name in values) return values[name];
+	return rawParameter(context, name, itemIndex, fallback);
+}
+
 function collectionValues(
 	context: IExecuteFunctions,
 	name: string,
 	itemIndex: number,
 ): IDataObject[] {
-	const value = rawParameter(context, name, itemIndex, {});
+	const value = parameterValue(context, name, itemIndex, {});
 	if (typeof value !== 'object' || value === null || Array.isArray(value)) return [];
 	const values = (value as IDataObject).values;
 	return Array.isArray(values) ? (values as IDataObject[]) : [];
@@ -557,7 +792,7 @@ function buildTypedBody(this: IExecuteFunctions, itemIndex: number, resource: st
 		],
 	};
 	for (const field of fieldsByResource[resource] ?? []) {
-		const value = rawParameter(this, field, itemIndex, undefined);
+		const value = parameterValue(this, field, itemIndex, undefined);
 		if (value !== undefined && value !== null && value !== '')
 			body[field] = value as IDataObject[string];
 	}
@@ -582,11 +817,17 @@ function buildTypedBody(this: IExecuteFunctions, itemIndex: number, resource: st
 		if (emailValues.length) body.emails = emailValues.map((entry) => String(entry.email ?? ''));
 		if (phoneValues.length) body.phones = phoneValues.map((entry) => String(entry.phone ?? ''));
 	}
-	const addressValue = rawParameter(this, 'address', itemIndex, {});
-	if (typeof addressValue === 'object' && addressValue !== null && !Array.isArray(addressValue)) {
-		body.address = compactObject(addressValue as IDataObject);
+	if (isV3(this) && resource === 'deal') {
+		const association = String(rawParameter(this, 'associateWith', itemIndex, 'none'));
+		if (association !== 'contact') delete body.contactId;
+		if (association !== 'organization') delete body.organizationId;
 	}
-	const tagIds = rawParameter(this, 'tagIds', itemIndex, []);
+	const addressValue = parameterValue(this, 'address', itemIndex, {});
+	if (typeof addressValue === 'object' && addressValue !== null && !Array.isArray(addressValue)) {
+		const address = compactObject(addressValue as IDataObject);
+		if (Object.keys(address).length) body.address = address;
+	}
+	const tagIds = parameterValue(this, 'tagIds', itemIndex, []);
 	if (Array.isArray(tagIds) && tagIds.length) body.tagIds = tagIds.map(String);
 	const options = rawParameter(this, 'options', itemIndex, {});
 	if (
@@ -664,6 +905,29 @@ class TavioCrmV2 implements INodeType {
 	}
 }
 
+// eslint-disable-next-line @n8n/community-nodes/icon-validation -- The versioned implementation receives its description in the constructor.
+class TavioCrmV3 implements INodeType {
+	icon = 'file:tavio-crm-icon.png';
+
+	description: INodeTypeDescription;
+	methods: TavioCrmV1['methods'];
+
+	constructor(baseDescription?: INodeTypeBaseDescription) {
+		const v1 = new TavioCrmV1();
+		this.description = {
+			...v1.description,
+			...baseDescription,
+			version: 3,
+			properties: tavioCrmV3Properties,
+		};
+		this.methods = v1.methods;
+	}
+
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		return TavioCrmV1.prototype.execute.call(this);
+	}
+}
+
 export class TavioCrm extends VersionedNodeType {
 	icon = 'file:tavio-crm-icon.png';
 
@@ -675,12 +939,13 @@ export class TavioCrm extends VersionedNodeType {
 			icon: 'file:tavio-crm-icon.png',
 			group: ['transform'],
 			description: 'Consulta e altera dados do Tavio CRM',
-			defaultVersion: 2,
+			defaultVersion: 3,
 		};
 		super(
 			{
 				1: new TavioCrmV1(),
 				2: new TavioCrmV2(baseDescription),
+				3: new TavioCrmV3(baseDescription),
 			},
 			baseDescription,
 		);

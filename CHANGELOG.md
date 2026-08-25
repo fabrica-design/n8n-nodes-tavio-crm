@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-08-25
+
+- Adiciona a versão visual v3 para `Negócio → Criar`: título, associação opcional e uma única coleção **Campos adicionais** preservam os caminhos salvos da v2.
+- Remove as inserções repetidas de Tags e Campos personalizados da v2, sem mudar nomes de parâmetros ou payloads de workflows já salvos.
+- Corrige os carregadores de opções com `listSearch`, paginação por cursor, envelopes `{ data, meta }`, filtro de entidade para Tags/Campos personalizados e erros HTTP seguros em português.
+- Mantém v1, v2, trigger, credencial e PNG oficial compatíveis com n8n 2.34.5.
+
 ## 0.2.0 — 2026-08-23
 
 - Adiciona a versão visual v2 do node Tavio CRM, com campos tipados por recurso e operação.

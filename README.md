@@ -1,4 +1,4 @@
-# n8n-nodes-tavio-crm 0.2.0
+# n8n-nodes-tavio-crm 0.2.1
 
 Pacote privado oficial de integração entre o [n8n](https://n8n.io/) e o Tavio
 CRM. Inclui um nó regular para operações comerciais e um trigger de webhooks
@@ -64,17 +64,49 @@ Listagens oferecem paginação automática, limite e saída simplificada ou brut
 Cada item de saída mantém `pairedItem`; **Continue On Fail** usa o contrato
 nativo do n8n.
 
-### Versões e campos visuais v2
+### Versões e campos visuais
 
-Nodes novos usam automaticamente o **typeVersion 2**. Contato, empresa, lead,
-negócio, atividade e produto agora exibem campos visuais tipados, com expressões
-do n8n e seletores dinâmicos de contatos, empresas, funis, etapas, produtos,
-usuários, equipes, tags e campos personalizados. O usuário não precisa conhecer
-o JSON da API para criar ou atualizar registros.
+Nodes novos usam automaticamente o **typeVersion 3**. Em `Negócio → Criar`, a
+tela inicial contém apenas **Título**, **Associar a** e a coleção **Campos
+adicionais**. A associação pode ser Contato, Empresa ou Nenhum — o contrato do
+Tavio CRM permite um negócio sem vínculo. Valor, moeda, funil, etapa,
+responsável, equipe, probabilidade, origem, ID externo, observações, Tags e
+Campos personalizados só aparecem após **Adicionar campo**; somente os itens
+escolhidos entram no payload.
+
+A v3 preserva a interface visual tipada de contato, empresa, lead, atividade e
+produto, os seletores de contatos, empresas, funis, etapas, produtos,
+responsáveis, equipes, tags e campos personalizados e o uso de expressões do
+n8n. Tags e Campos personalizados aparecem uma única vez por operação aplicável.
+Funil e Etapa são obrigatórios na criação de negócio e a lista de Etapa é filtrada
+pelo Funil selecionado.
 
 Nodes existentes da versão 0.1.1 continuam carregando como **typeVersion 1**. A
 v1 preserva **Campos (JSON)**, a chave de idempotência legada, os nomes internos e
 a serialização dos workflows existentes. Não há migração silenciosa de valores.
+
+Workflows salvos pela 0.2.0 continuam como **typeVersion 2**: os mesmos nomes e
+caminhos de parâmetros são executados sem migração. A v2 recebeu apenas a remoção
+das definições repetidas de Tags e Campos personalizados e os carregadores
+corrigidos. A v3 usa um normalizador interno para os caminhos dentro de **Campos
+adicionais**.
+
+Os textos `Renovação Acme` e `25000.00` eram placeholders da v2, não defaults ou
+dados enviados pela API. Eles não são copiados para a v3 e nenhum valor salvo do
+usuário é apagado. `BRL` e `0` só são mostrados depois que o respectivo campo é
+adicionado à coleção; `0` e `false` explicitamente escolhidos são preservados.
+
+### Seletores e erros
+
+Os resource locators usam a API `listSearch` do n8n com paginação por cursor. Tags
+e Campos personalizados chamam respectivamente `/tags?entity=<ENTIDADE>` e
+`/custom-fields?entity=<ENTIDADE>` com a entidade válida do registro; `TAG` não é
+uma entidade aceita pelo CRM. Todas as respostas são desembrulhadas de
+`{ data, meta }` e retornam IDs como valor interno e nomes legíveis como rótulo.
+
+Erros de opções são convertidos em mensagens acionáveis para credencial inválida
+(401), escopo ausente (403), URL/recurso (404), configuração inválida (422) e API
+indisponível (5xx), sem serializar objetos HTTP, chaves, headers ou `workspaceId`.
 
 ### Campos JSON (typeVersion 1)
 

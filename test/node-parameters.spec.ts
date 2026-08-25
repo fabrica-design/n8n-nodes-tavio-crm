@@ -75,16 +75,19 @@ describe('parâmetros dos nós', () => {
 		expect(trigger.description.credentials?.[0]?.name).toBe('tavioCrmApi');
 	});
 
-	it('mantém a descrição v1 com Campos JSON e a v2 visual como padrão', () => {
+	it('mantém as descrições v1 e v2 e usa a v3 compacta como padrão', () => {
 		const versioned = new TavioCrm();
 		const v1 = versioned.getNodeType(1).description.properties;
 		const v2 = versioned.getNodeType(2).description.properties;
-		expect(versioned.currentVersion).toBe(2);
+		const v3 = versioned.getNodeType(3).description.properties;
+		expect(versioned.currentVersion).toBe(3);
 		expect(JSON.stringify(v1)).toContain('Campos (JSON)');
 		expect(JSON.stringify(v1)).toContain('idempotencyKey');
 		expect(JSON.stringify(v2)).not.toContain('Campos (JSON)');
 		expect(JSON.stringify(v2)).toContain('Opções avançadas');
 		expect(JSON.stringify(v2)).toContain('idempotencyMode');
+		expect(JSON.stringify(v3)).toContain('Campos adicionais');
+		expect(JSON.stringify(v3)).toContain('associateWith');
 	});
 
 	it('não oculta a entrada JSON da requisição avançada e usa locators na v2', () => {
