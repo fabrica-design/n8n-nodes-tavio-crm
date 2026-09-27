@@ -69,4 +69,27 @@ describe('UX visual sem propriedades duplicadas', () => {
 		expect(JSON.stringify(visible)).not.toContain('Renovação Acme');
 		expect(JSON.stringify(visible)).not.toContain('25000.00');
 	});
+
+	it('exige classificação explícita de origem e emissor e não sugere título fictício na v3', () => {
+		const node = new TavioCrm();
+		const v3 = node.getNodeType(3).description.properties;
+		const inbound = visibleProperties(v3, 'attendance', 'inbound');
+		const firstResponse = visibleProperties(v3, 'attendance', 'firstResponse');
+		const leadCreate = visibleProperties(v3, 'lead', 'create');
+		const source = inbound.find((property) => property.name === 'source');
+		const responderKind = firstResponse.find((property) => property.name === 'responderKind');
+		const title = leadCreate.find((property) => property.name === 'title');
+
+		expect(source).toMatchObject({ default: '', required: true });
+		expect(responderKind).toMatchObject({ default: '', required: true });
+		expect(title).toMatchObject({ default: '', placeholder: 'Informe o título do lead' });
+		expect(
+			node
+				.getNodeType(2)
+				.description.properties.find(
+					(property) =>
+						property.name === 'title' && property.displayOptions?.show?.resource?.includes('lead'),
+				)?.placeholder,
+		).toBe('Renovação do contrato');
+	});
 });

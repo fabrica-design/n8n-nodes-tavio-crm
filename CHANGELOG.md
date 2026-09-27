@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3 — 2026-09-27
+
+- Exige origem explícita ao registrar atendimento e tipo de emissor explícito na primeira resposta; a interface deixa de presumir orgânico ou agente humano.
+- Substitui na v3 o exemplo de título de Lead por orientação genérica, sem alterar o valor salvo nem a interface dos workflows v2.
+
 ## 0.2.2 — 2026-09-27
 
 - Adiciona à v3 operações de atendimento inbound, transições e encerramento, com IDs/estado na saída.

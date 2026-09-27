@@ -1,4 +1,4 @@
-# n8n-nodes-tavio-crm 0.2.2
+# n8n-nodes-tavio-crm 0.2.3
 
 Pacote privado oficial de integração entre o [n8n](https://n8n.io/) e o Tavio
 CRM. Inclui um nó regular para operações comerciais e um trigger de webhooks
@@ -70,9 +70,10 @@ nativo do n8n.
 
 ### Versões e campos visuais
 
-O incremento inbound de 2026-09-26 está implementado **localmente**. A migration
-da API passou em PostgreSQL temporário vazio; faltam validação contra cópia do
-banco de destino, publicação da versão 0.2.2 e deploy. Na v3,
+O incremento inbound de 2026-09-26 está implementado na API e no node. A migration
+foi aplicada em produção e a versão 0.2.2 do pacote foi instalada nos três
+processos n8n; a execução das novas operações com credencial autorizada ainda
+precisa de teste. Na v3,
 **Atendimento → Registrar entrada** aceita IDs de conta, conversa e mensagem do
 Chatwoot, canal, horário, origem e campanha opcional. O retorno simplificado
 traz `attendanceId`, `contactId`, `leadId`, `status`, `version`, horários e
@@ -82,6 +83,11 @@ localizar** exige `externalId` de negócio e recupera o existente após repetiç
 ou timeout. As novas operações não usam uma chave de idempotência derivada da
 execução do n8n; os IDs de mensagem, evento e Lead são os identificadores
 persistentes. O node não envia `workspaceId`.
+
+Na v3, **Origem** e **Tipo de emissor** começam vazios e exigem seleção explícita.
+O campo **Título** do Lead mostra uma orientação genérica; o antigo texto
+“Renovação do contrato” é apenas um placeholder preservado na v2, não um valor
+enviado ao CRM.
 
 O contrato, os exemplos de payload, scopes e o plano de implantação estão em
 [docs/inbound-attendance.md](../tavio-crm/docs/inbound-attendance.md). A v2

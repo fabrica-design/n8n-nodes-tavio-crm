@@ -1,6 +1,6 @@
 {
 	"name": "n8n-nodes-tavio-crm",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"description": "Nós oficiais privados do Tavio CRM para n8n",
 	"license": "MIT",
 	"homepage": "https://github.com/fabrica-design/n8n-nodes-tavio-crm#readme",

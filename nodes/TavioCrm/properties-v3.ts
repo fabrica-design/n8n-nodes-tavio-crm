@@ -419,7 +419,9 @@ const attendanceProperties: INodeProperties[] = [
 		displayName: 'Origem',
 		name: 'source',
 		type: 'options',
-		default: 'whatsapp_organico',
+		default: '',
+		required: true,
+		description: 'Classifique a origem antes de registrar a primeira mensagem.',
 		options: [
 			{ name: 'WhatsApp orgânico', value: 'whatsapp_organico' },
 			{ name: 'WhatsApp campanha', value: 'whatsapp_campanha' },
@@ -467,7 +469,9 @@ const attendanceProperties: INodeProperties[] = [
 		displayName: 'Tipo de emissor',
 		name: 'responderKind',
 		type: 'options',
-		default: 'HUMAN_AGENT',
+		default: '',
+		required: true,
+		description: 'Selecione agente humano somente após confirmar quem respondeu.',
 		options: [
 			{ name: 'Agente humano', value: 'HUMAN_AGENT' },
 			{ name: 'Bot', value: 'BOT' },
@@ -514,6 +518,9 @@ const remainingProperties = baseProperties
 	.filter((property) => property.name !== 'resource' && property.name !== 'operation')
 	.map((property) => {
 		const shown = property.displayOptions?.show;
+		if (property.name === 'title' && shown?.resource?.includes('lead')) {
+			return { ...property, placeholder: 'Informe o título do lead' };
+		}
 		if (property.name === 'externalId' && shown?.resource?.includes('lead')) {
 			return {
 				...property,
