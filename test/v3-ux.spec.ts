@@ -64,6 +64,12 @@ describe('UX visual sem propriedades duplicadas', () => {
 		);
 		expect(visible.filter((property) => property.name === 'title')[0].default).toBe('');
 		expect(visible.filter((property) => property.name === 'additionalFields')).toHaveLength(1);
+		const additionalOptions = visible.find((property) => property.name === 'additionalFields')
+			?.options as INodeProperties[];
+		expect(
+			additionalOptions.find((property) => property.name === 'pipelineId')?.required,
+		).toBeFalsy();
+		expect(additionalOptions.find((property) => property.name === 'stageId')?.required).toBeFalsy();
 		expect(visible.filter((property) => property.name === 'tagIds')).toHaveLength(0);
 		expect(visible.filter((property) => property.name === 'customFields')).toHaveLength(0);
 		expect(JSON.stringify(visible)).not.toContain('Renovação Acme');

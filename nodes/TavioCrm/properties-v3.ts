@@ -90,8 +90,8 @@ const dealAdditionalFields: INodeProperties = {
 			],
 			default: 'BRL',
 		},
-		locator('Funil', 'pipelineId', 'getPipelines', true),
-		locator('Etapa', 'stageId', 'getStages', true, ['additionalFields.pipelineId']),
+		locator('Funil', 'pipelineId', 'getPipelines'),
+		locator('Etapa', 'stageId', 'getStages', false, ['additionalFields.pipelineId']),
 		{
 			displayName: 'Data prevista de fechamento',
 			name: 'expectedCloseAt',
@@ -423,6 +423,7 @@ const attendanceProperties: INodeProperties[] = [
 		required: true,
 		description: 'Classifique a origem antes de registrar a primeira mensagem.',
 		options: [
+			{ name: 'Selecione a origem', value: '' },
 			{ name: 'WhatsApp orgânico', value: 'whatsapp_organico' },
 			{ name: 'WhatsApp campanha', value: 'whatsapp_campanha' },
 		],
@@ -473,6 +474,7 @@ const attendanceProperties: INodeProperties[] = [
 		required: true,
 		description: 'Selecione agente humano somente após confirmar quem respondeu.',
 		options: [
+			{ name: 'Selecione o tipo', value: '' },
 			{ name: 'Agente humano', value: 'HUMAN_AGENT' },
 			{ name: 'Bot', value: 'BOT' },
 			{ name: 'API', value: 'API' },

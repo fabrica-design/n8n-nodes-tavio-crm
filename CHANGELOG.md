@@ -4,6 +4,7 @@
 
 - Exige origem explícita ao registrar atendimento e tipo de emissor explícito na primeira resposta; a interface deixa de presumir orgânico ou agente humano.
 - Substitui na v3 o exemplo de título de Lead por orientação genérica, sem alterar o valor salvo nem a interface dos workflows v2.
+- Corrige a validação indevida de Funil e Etapa em operações alheias à criação de Negócio.
 
 ## 0.2.2 — 2026-09-27
 
