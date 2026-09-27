@@ -6,11 +6,11 @@ com validação HMAC-SHA256.
 
 ## Compatibilidade
 
-| Componente      | Versão validada                     |
-| --------------- | ----------------------------------- |
-| n8n self-hosted | 2.34.5                              |
-| `n8n-workflow`  | 2.34.2 (usado pelo n8n 2.34.5)      |
-| Node.js         | 22.22 ou superior                   |
+| Componente      | Versão validada                                                   |
+| --------------- | ----------------------------------------------------------------- |
+| n8n self-hosted | 2.34.5                                                            |
+| `n8n-workflow`  | 2.34.2 (usado pelo n8n 2.34.5)                                    |
+| Node.js         | 22.22 ou superior                                                 |
 | Tavio CRM API   | `/api/v1` do monorepo; Attendance requer incremento de 2026-09-26 |
 
 O pacote usa somente `n8n-workflow` como peer dependency e não inclui runtime
