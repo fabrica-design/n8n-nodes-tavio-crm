@@ -1,10 +1,11 @@
 # Changelog
 
-## 0.2.2 (candidato local, não publicado) — 2026-09-26
+## 0.2.2 — 2026-09-27
 
 - Adiciona à v3 operações de atendimento inbound, transições e encerramento, com IDs/estado na saída.
 - Adiciona à v3 upsert de Lead por `externalId`, busca exata e consulta de Leads ativos por contato.
 - Preserva workflows `typeVersion: 2`; nenhuma automação n8n foi publicada ou alterada.
+- Valida o carregamento da v3 na imagem n8n 2.40.6 em CI.
 
 ## 0.2.1 — 2026-08-25
 

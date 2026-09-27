@@ -1,4 +1,4 @@
-# n8n-nodes-tavio-crm 0.2.2 (candidato local)
+# n8n-nodes-tavio-crm 0.2.2
 
 Pacote privado oficial de integração entre o [n8n](https://n8n.io/) e o Tavio
 CRM. Inclui um nó regular para operações comerciais e um trigger de webhooks
@@ -8,7 +8,7 @@ com validação HMAC-SHA256.
 
 | Componente      | Versão validada                                                   |
 | --------------- | ----------------------------------------------------------------- |
-| n8n self-hosted | 2.40.6 (imagem de produção observada; validação do node pendente) |
+| n8n self-hosted | 2.40.6 (carregamento da v3 validado em CI; instância pendente)    |
 | `n8n-workflow`  | 2.34.2 nos testes locais; versão da imagem 2.40.6 a conferir      |
 | Node.js         | 22.22 ou superior para build; runtime definido pela imagem n8n    |
 | Tavio CRM API   | `/api/v1` do monorepo; Attendance requer incremento de 2026-09-26 |
@@ -16,8 +16,9 @@ com validação HMAC-SHA256.
 O pacote usa somente `n8n-workflow` como peer dependency e não inclui runtime
 externo. O peer permanece aberto para usar a cópia fornecida pelo n8n; os tipos
 e testes de desenvolvimento ainda ficam fixados em `n8n-workflow` 2.34.2.
-A compatibilidade de execução com o n8n 2.40.6 observado em produção ainda
-precisa de smoke test. A implementação foi validada com `@n8n/node-cli`.
+A imagem com n8n 2.40.6 passou por build e smoke test do carregamento da v3 no
+CI; a instalação e a execução na instância de produção ainda precisam de teste.
+A implementação foi validada com `@n8n/node-cli`.
 
 ## Credenciais
 
@@ -201,9 +202,14 @@ recusa destinos locais ou privados em produção.
 
 ### Pela interface do n8n
 
+Use esta opção apenas em uma instância sem queue mode. No queue mode, o pacote
+precisa estar disponível também em cada worker e processador de webhook; a
+[documentação oficial do n8n](https://docs.n8n.io/integrations/community-nodes/installation-and-management/manual-installation)
+orienta a instalação manual nesse caso.
+
 1. Gere ou disponibilize o pacote em um registro npm acessível pela instância.
 2. Em **Settings → Community Nodes**, escolha **Install**.
-3. Informe `n8n-nodes-tavio-crm` e reinicie os workers se usar queue mode.
+3. Informe `n8n-nodes-tavio-crm` e reinicie a instância após instalar.
 
 Para pacote privado em registro, configure a autenticação npm no ambiente do
 container por secret do orquestrador; não grave token em imagem ou repositório.
