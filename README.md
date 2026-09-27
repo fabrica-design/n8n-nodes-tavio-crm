@@ -1,4 +1,4 @@
-# n8n-nodes-tavio-crm 0.2.1
+# n8n-nodes-tavio-crm 0.2.2 (candidato local)
 
 Pacote privado oficial de integração entre o [n8n](https://n8n.io/) e o Tavio
 CRM. Inclui um nó regular para operações comerciais e um trigger de webhooks
@@ -11,7 +11,7 @@ com validação HMAC-SHA256.
 | n8n self-hosted | 2.34.5                              |
 | `n8n-workflow`  | 2.34.2 (usado pelo n8n 2.34.5)      |
 | Node.js         | 22.22 ou superior                   |
-| Tavio CRM API   | `/api/v1` do monorepo em 13/08/2026 |
+| Tavio CRM API   | `/api/v1` do monorepo; Attendance requer incremento de 2026-09-26 |
 
 O pacote usa somente `n8n-workflow` como peer dependency e não inclui runtime
 externo. O peer permanece aberto para usar a cópia fornecida pelo n8n; os tipos
@@ -31,33 +31,35 @@ deriva o tenant exclusivamente da chave.
 
 Escopos necessários dependem das operações usadas:
 
-| Função                | Escopos                                           |
-| --------------------- | ------------------------------------------------- |
-| Contatos e empresas   | `contacts:read/write`, `organizations:read/write` |
-| Leads e negócios      | `leads:read/write`, `deals:read/write`            |
-| Funis e opções        | `pipelines:read`                                  |
-| Atividades e produtos | `activities:read/write`, `products:read/write`    |
-| Notas e tags          | `notes:write`, `tags:read/write`                  |
-| Campos e seletores    | `custom-fields:read`, `users:read`, `teams:read`  |
-| Trigger               | `webhooks:manage`                                 |
+| Função                | Escopos                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| Contatos e empresas   | `contacts:read/write`, `organizations:read/write`                                                 |
+| Leads e negócios      | `leads:read/write`, `deals:read/write`                                                            |
+| Atendimento inbound   | `attendances:read/write`; vínculo com pessoa ou Lead também exige `contacts:read` ou `leads:read` |
+| Funis e opções        | `pipelines:read`                                                                                  |
+| Atividades e produtos | `activities:read/write`, `products:read/write`                                                    |
+| Notas e tags          | `notes:write`, `tags:read/write`                                                                  |
+| Campos e seletores    | `custom-fields:read`, `users:read`, `teams:read`                                                  |
+| Trigger               | `webhooks:manage`                                                                                 |
 
 Use o conjunto mínimo. Revogue a chave no CRM ao desativar definitivamente a
 integração.
 
 ## Operações
 
-| Recurso   | Operações                                                                                                                |
-| --------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Contato   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                     |
-| Empresa   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                     |
-| Lead      | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Arquivar, Restaurar, Qualificar, Desqualificar, Converter              |
-| Negócio   | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Mover, Ganho, Perdido, Reabrir, Arquivar, Restaurar, Adicionar Produto |
-| Atividade | Criar, Obter, Obter Muitas, Atualizar, Concluir                                                                          |
-| Nota      | Criar                                                                                                                    |
-| Produto   | Criar, Obter, Obter Muitos, Atualizar                                                                                    |
-| Funil     | Obter Muitos, Obter Etapas                                                                                               |
-| Tag       | Obter Muitas, Adicionar ao Item, Remover do Item                                                                         |
-| Avançado  | Requisição customizada restrita à origem da credencial                                                                   |
+| Recurso     | Operações                                                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contato     | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                                                                                                 |
+| Empresa     | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Criar ou Atualizar                                                                                                                                 |
+| Lead        | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Arquivar, Restaurar, Qualificar, Desqualificar, Converter; v3: Criar ou localizar por ID externo, Buscar por ID externo, Listar ativos por contato |
+| Atendimento | v3: Registrar entrada, Obter, Vincular, Encaminhar, Registrar primeira resposta, Encerrar                                                                                                            |
+| Negócio     | Criar, Obter, Obter Muitos, Pesquisar, Atualizar, Mover, Ganho, Perdido, Reabrir, Arquivar, Restaurar, Adicionar Produto                                                                             |
+| Atividade   | Criar, Obter, Obter Muitas, Atualizar, Concluir                                                                                                                                                      |
+| Nota        | Criar                                                                                                                                                                                                |
+| Produto     | Criar, Obter, Obter Muitos, Atualizar                                                                                                                                                                |
+| Funil       | Obter Muitos, Obter Etapas                                                                                                                                                                           |
+| Tag         | Obter Muitas, Adicionar ao Item, Remover do Item                                                                                                                                                     |
+| Avançado    | Requisição customizada restrita à origem da credencial                                                                                                                                               |
 
 Funis, etapas, produtos, tags, usuários e equipes são carregados dinamicamente.
 Listagens oferecem paginação automática, limite e saída simplificada ou bruta.
@@ -65,6 +67,24 @@ Cada item de saída mantém `pairedItem`; **Continue On Fail** usa o contrato
 nativo do n8n.
 
 ### Versões e campos visuais
+
+O incremento inbound de 2026-09-26 está implementado **localmente**. A migration
+da API passou em PostgreSQL temporário vazio; faltam validação contra cópia do
+banco de destino, publicação da versão 0.2.2 e deploy. Na v3,
+**Atendimento → Registrar entrada** aceita IDs de conta, conversa e mensagem do
+Chatwoot, canal, horário, origem e campanha opcional. O retorno simplificado
+traz `attendanceId`, `contactId`, `leadId`, `status`, `version`, horários e
+`outcome`. O contato pode ficar vazio até existir identidade confiável.
+**Atendimento → Encerrar** exige motivo e não muda o Lead. **Lead → Criar ou
+localizar** exige `externalId` de negócio e recupera o existente após repetição
+ou timeout. As novas operações não usam uma chave de idempotência derivada da
+execução do n8n; os IDs de mensagem, evento e Lead são os identificadores
+persistentes. O node não envia `workspaceId`.
+
+O contrato, os exemplos de payload, scopes e o plano de implantação estão em
+[docs/inbound-attendance.md](../tavio-crm/docs/inbound-attendance.md). A v2
+continua com os mesmos parâmetros e execução; novas operações aparecem somente
+na v3. Nenhum workflow atual é migrado automaticamente.
 
 Nodes novos usam automaticamente o **typeVersion 3**. Em `Negócio → Criar`, a
 tela inicial contém apenas **Título**, **Associar a** e a coleção **Campos
@@ -215,19 +235,19 @@ O `Dockerfile` versionado gera o pacote em um estágio Node 22 Alpine e o instal
 por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.34.5`:
 
 ```bash
-docker build -t n8n-tavio-crm:2.34.5-0.2.0 .
+docker build -t n8n-tavio-crm:2.34.5-0.2.2-COMMIT .
 ```
 
 Se `docker.n8n.io` responder HTTP 429, preserve a mesma versão e use a imagem
 espelhada no Docker Hub por meio do argumento `N8N_IMAGE`:
 
 ```bash
-docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.2.0 .
+docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.2.2-COMMIT .
 ```
 
 No EasyPanel, use este repositório e o `Dockerfile` da raiz para construir uma
 imagem própria. Aponte o serviço principal e todos os workers n8n para a mesma
-imagem imutável `n8n-tavio-crm:2.34.5-0.2.0`; uma mistura de versões entre main
+imagem imutável `n8n-tavio-crm:2.34.5-0.2.2-COMMIT`; uma mistura de versões entre main
 e workers não é suportada. Preserve integralmente o banco, os volumes, o
 domínio, todas as variáveis existentes e, em especial, `N8N_ENCRYPTION_KEY`.
 Não recrie nem limpe esses recursos durante a troca da imagem. Não é necessário

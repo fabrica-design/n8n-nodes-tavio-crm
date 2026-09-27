@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2 (candidato local, não publicado) — 2026-09-26
+
+- Adiciona à v3 operações de atendimento inbound, transições e encerramento, com IDs/estado na saída.
+- Adiciona à v3 upsert de Lead por `externalId`, busca exata e consulta de Leads ativos por contato.
+- Preserva workflows `typeVersion: 2`; nenhuma automação n8n foi publicada ou alterada.
+
 ## 0.2.1 — 2026-08-25
 
 - Adiciona a versão visual v3 para `Negócio → Criar`: título, associação opcional e uma única coleção **Campos adicionais** preservam os caminhos salvos da v2.

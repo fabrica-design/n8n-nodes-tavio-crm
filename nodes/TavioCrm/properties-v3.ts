@@ -1,4 +1,5 @@
 /* eslint-disable n8n-nodes-base/node-param-display-name-miscased, n8n-nodes-base/node-param-display-name-wrong-for-dynamic-options, n8n-nodes-base/node-param-description-missing-from-dynamic-options, n8n-nodes-base/node-param-collection-type-unsorted-items, n8n-nodes-base/node-param-description-excess-final-period, n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options, n8n-nodes-base/node-param-description-missing-from-dynamic-multi-options -- A interface deste node privado é localizada em português e Campos adicionais mantém ordem de negócio, não alfabética. */
+/* eslint-disable n8n-nodes-base/node-param-option-name-wrong-for-upsert, n8n-nodes-base/node-param-description-wrong-for-upsert, n8n-nodes-base/node-param-options-type-unsorted-items -- O upsert recupera Lead por ID externo sem atualizar; a ordem das operacoes acompanha a jornada de atendimento. */
 import type { INodeProperties } from 'n8n-workflow';
 import { tavioCrmV2Properties } from './properties-v2';
 
@@ -296,12 +297,258 @@ const resourceAndOperationProperties = baseProperties.filter(
 	(property) => property.name === 'resource' || property.name === 'operation',
 );
 
-const remainingProperties = baseProperties.filter(
-	(property) => property.name !== 'resource' && property.name !== 'operation',
-);
+const v3ResourceAndOperationProperties = resourceAndOperationProperties.map((property) => {
+	if (property.name === 'resource') {
+		return {
+			...property,
+			options: [...(property.options ?? []), { name: 'Atendimento', value: 'attendance' }],
+		};
+	}
+	if (property.displayOptions?.show?.resource?.includes('lead')) {
+		return {
+			...property,
+			options: [
+				...(property.options ?? []),
+				{
+					name: 'Criar ou localizar',
+					value: 'upsert',
+					action: 'Criar ou localizar lead',
+					description: 'Cria ou recupera lead pelo ID externo estável',
+				},
+				{
+					name: 'Buscar por ID externo',
+					value: 'getByExternalId',
+					action: 'Buscar lead por ID externo',
+					description: 'Recupera um lead pelo identificador externo exato',
+				},
+				{
+					name: 'Listar ativos por contato',
+					value: 'listActiveByContact',
+					action: 'Listar leads ativos por contato',
+					description: 'Consulta leads NEW e QUALIFIED do contato',
+				},
+			],
+		};
+	}
+	return property;
+});
+
+const attendanceOperations: INodeProperties = {
+	displayName: 'Operação',
+	name: 'operation',
+	type: 'options',
+	noDataExpression: true,
+	displayOptions: { show: { resource: ['attendance'] } },
+	options: [
+		{
+			name: 'Registrar entrada',
+			value: 'inbound',
+			action: 'Registrar entrada de atendimento',
+			description: 'Cria ou localiza episódio pela mensagem recebida',
+		},
+		{
+			name: 'Obter',
+			value: 'get',
+			action: 'Obter atendimento',
+			description: 'Consulta atendimento e histórico',
+		},
+		{
+			name: 'Vincular',
+			value: 'link',
+			action: 'Vincular atendimento',
+			description: 'Vincula contato, lead ou responsável com versão',
+		},
+		{
+			name: 'Encaminhar',
+			value: 'handoff',
+			action: 'Encaminhar atendimento',
+			description: 'Marca passagem à fila humana',
+		},
+		{
+			name: 'Registrar primeira resposta',
+			value: 'firstResponse',
+			action: 'Registrar primeira resposta',
+			description: 'Marca resposta elegível de agente humano',
+		},
+		{
+			name: 'Encerrar',
+			value: 'close',
+			action: 'Encerrar atendimento',
+			description: 'Encerra episódio com motivo sem alterar o lead',
+		},
+	],
+	default: 'inbound',
+};
+
+const attendanceField = (
+	displayName: string,
+	name: string,
+	operations: string[],
+	required = false,
+	type: INodeProperties['type'] = 'string',
+): INodeProperties => ({
+	displayName,
+	name,
+	type,
+	default: type === 'number' ? 1 : '',
+	required,
+	displayOptions: { show: { resource: ['attendance'], operation: operations } },
+});
+
+const attendanceProperties: INodeProperties[] = [
+	attendanceOperations,
+	attendanceField(
+		'ID do atendimento',
+		'attendanceId',
+		['get', 'link', 'handoff', 'firstResponse', 'close'],
+		true,
+	),
+	attendanceField('Conta Chatwoot', 'chatwootAccountId', ['inbound'], true),
+	attendanceField('Conversa Chatwoot', 'chatwootConversationId', ['inbound'], true),
+	attendanceField('Mensagem recebida', 'messageId', ['inbound'], true),
+	attendanceField('Inbox Chatwoot', 'inboxId', ['inbound']),
+	attendanceField('Canal', 'channel', ['inbound'], true),
+	attendanceField(
+		'Horário do evento',
+		'occurredAt',
+		['inbound', 'handoff', 'firstResponse', 'close'],
+		true,
+		'dateTime',
+	),
+	{
+		displayName: 'Origem',
+		name: 'source',
+		type: 'options',
+		default: 'whatsapp_organico',
+		options: [
+			{ name: 'WhatsApp orgânico', value: 'whatsapp_organico' },
+			{ name: 'WhatsApp campanha', value: 'whatsapp_campanha' },
+		],
+		displayOptions: { show: { resource: ['attendance'], operation: ['inbound'] } },
+	},
+	attendanceField('Ref da campanha', 'tvRef', ['inbound']),
+	attendanceField('Campanha de origem', 'campaignOrigin', ['inbound']),
+	attendanceField('Criativo de origem', 'creativeOrigin', ['inbound']),
+	{
+		...locator('Contato CRM', 'contactId', 'getContacts'),
+		displayOptions: { show: { resource: ['attendance'], operation: ['inbound', 'link'] } },
+	},
+	{
+		displayName: 'Estado inicial',
+		name: 'initialStatus',
+		type: 'options',
+		default: 'EM_TRIAGEM',
+		options: [
+			{ name: 'Em triagem', value: 'EM_TRIAGEM' },
+			{ name: 'Aguardando atendimento', value: 'AGUARDANDO_ATENDIMENTO' },
+		],
+		displayOptions: { show: { resource: ['attendance'], operation: ['inbound'] } },
+	},
+	attendanceField('ID estável do evento', 'eventId', ['handoff', 'firstResponse', 'close'], true),
+	attendanceField('Versão', 'attendanceVersion', ['link'], true, 'number'),
+	attendanceField('Versão esperada (opcional)', 'expectedVersion', [
+		'handoff',
+		'firstResponse',
+		'close',
+	]),
+	{
+		...locator('Lead CRM', 'leadId', 'getLeads'),
+		displayOptions: { show: { resource: ['attendance'], operation: ['link'] } },
+	},
+	{
+		...locator('Responsável CRM', 'ownerId', 'getUsers'),
+		displayOptions: { show: { resource: ['attendance'], operation: ['link', 'handoff'] } },
+	},
+	{
+		...locator('Equipe CRM', 'teamId', 'getTeams'),
+		displayOptions: { show: { resource: ['attendance'], operation: ['link', 'handoff'] } },
+	},
+	{
+		displayName: 'Tipo de emissor',
+		name: 'responderKind',
+		type: 'options',
+		default: 'HUMAN_AGENT',
+		options: [
+			{ name: 'Agente humano', value: 'HUMAN_AGENT' },
+			{ name: 'Bot', value: 'BOT' },
+			{ name: 'API', value: 'API' },
+		],
+		displayOptions: { show: { resource: ['attendance'], operation: ['firstResponse'] } },
+	},
+	{
+		displayName: 'Nota privada',
+		name: 'private',
+		type: 'boolean',
+		default: false,
+		displayOptions: { show: { resource: ['attendance'], operation: ['firstResponse'] } },
+	},
+	attendanceField('Motivo do encerramento', 'reason', ['close'], true),
+];
+
+const leadLookupProperties: INodeProperties[] = [
+	{
+		displayName: 'ID externo',
+		name: 'externalId',
+		type: 'string',
+		default: '',
+		required: true,
+		description:
+			'Identificador estável da oportunidade comercial; repetição devolve o lead existente.',
+		displayOptions: { show: { resource: ['lead'], operation: ['upsert'] } },
+	},
+	{
+		displayName: 'ID externo',
+		name: 'lookupExternalId',
+		type: 'string',
+		default: '',
+		required: true,
+		displayOptions: { show: { resource: ['lead'], operation: ['getByExternalId'] } },
+	},
+	{
+		...locator('Contato CRM', 'lookupContactId', 'getContacts', true),
+		displayOptions: { show: { resource: ['lead'], operation: ['listActiveByContact'] } },
+	},
+];
+
+const remainingProperties = baseProperties
+	.filter((property) => property.name !== 'resource' && property.name !== 'operation')
+	.map((property) => {
+		const shown = property.displayOptions?.show;
+		if (property.name === 'externalId' && shown?.resource?.includes('lead')) {
+			return {
+				...property,
+				displayOptions: {
+					...property.displayOptions,
+					hide: { resource: ['lead'], operation: ['upsert'] },
+				},
+			};
+		}
+		if (
+			shown?.resource?.includes('lead') &&
+			shown.operation?.includes('create') &&
+			!shown.operation.includes('upsert')
+		) {
+			return {
+				...property,
+				displayOptions: {
+					...property.displayOptions,
+					show: { ...shown, operation: [...shown.operation, 'upsert'] },
+				},
+			};
+		}
+		if (property.name === 'options') {
+			return {
+				...property,
+				displayOptions: { hide: { resource: ['advanced', 'attendance'] } },
+			};
+		}
+		return property;
+	});
 
 export const tavioCrmV3Properties: INodeProperties[] = [
-	...resourceAndOperationProperties,
+	...v3ResourceAndOperationProperties,
+	...attendanceProperties,
+	...leadLookupProperties,
 	{
 		displayName: 'Título',
 		name: 'title',

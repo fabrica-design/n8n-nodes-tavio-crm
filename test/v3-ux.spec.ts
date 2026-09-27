@@ -34,7 +34,10 @@ describe('UX visual sem propriedades duplicadas', () => {
 						(property) => property.name !== 'resource' && property.name !== 'operation',
 					);
 					const names = visible.map((property) => property.name);
-					expect(new Set(names).size, `${version}:${resource}:${option.value}`).toBe(names.length);
+					expect(
+						new Set(names).size,
+						`${version}:${resource}:${option.value}: ${names.join(', ')}`,
+					).toBe(names.length);
 					const usesCollection = version === 3 && resource === 'deal' && option.value === 'create';
 					const expectedCollections =
 						['contact', 'organization', 'lead', 'deal', 'product'].includes(resource) &&

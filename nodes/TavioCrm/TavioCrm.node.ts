@@ -385,6 +385,24 @@ async function executeItem(this: IExecuteFunctions, itemIndex: number): Promise<
 	const operation = this.getNodeParameter('operation', itemIndex) as string;
 	const simplify = resolveSimplifyOutput.call(this, itemIndex);
 	const idempotencyKey = resolveIdempotencyKey.call(this, itemIndex, resource, operation);
+	if (isV3(this) && resource === 'attendance') {
+		return executeAttendance.call(this, itemIndex, operation, simplify);
+	}
+	if (isV3(this) && resource === 'lead' && operation === 'getByExternalId') {
+		const externalId = getParameterString(this, 'lookupExternalId', itemIndex);
+		const response = await tavioApiRequest.call(this, 'GET', '/leads', undefined, {
+			externalId,
+			limit: 1,
+		});
+		if (!simplify) return [asDataObject(response)];
+		const page = unwrapResponse<TavioPage>(response);
+		return [page.items[0] ? { ...page.items[0], found: true } : { found: false, externalId }];
+	}
+	if (isV3(this) && resource === 'lead' && operation === 'listActiveByContact') {
+		const contactId = getParameterString(this, 'lookupContactId', itemIndex);
+		const page = await getMany.call(this, '/leads', { contactId, active: 'true' }, true, 100);
+		return simplify ? page.items : page.rawPages.map(asDataObject);
+	}
 
 	if (resource === 'advanced') {
 		const method = this.getNodeParameter('method', itemIndex) as IHttpRequestMethods;
@@ -697,6 +715,12 @@ function additionalFields(
 	itemIndex: number | undefined,
 ): IDataObject | undefined {
 	if (!isV3(context)) return undefined;
+	const operation = String(rawParameter(context, 'operation', itemIndex, ''));
+	if (
+		rawParameter(context, 'resource', itemIndex, '') !== 'deal' ||
+		(operation !== '' && operation !== 'create')
+	)
+		return undefined;
 	const value = rawParameter(context, 'additionalFields', itemIndex, undefined);
 	return typeof value === 'object' && value !== null && !Array.isArray(value)
 		? (value as IDataObject)
@@ -842,6 +866,75 @@ function buildTypedBody(this: IExecuteFunctions, itemIndex: number, resource: st
 	return body;
 }
 
+async function executeAttendance(
+	this: IExecuteFunctions,
+	itemIndex: number,
+	operation: string,
+	simplify: boolean,
+): Promise<IDataObject[]> {
+	let method: IHttpRequestMethods = 'POST';
+	let path = '/attendances/inbound';
+	let body: IDataObject | undefined;
+	const attendanceId = getParameterString(this, 'attendanceId', itemIndex, '');
+	if (operation === 'get') {
+		method = 'GET';
+		path = `/attendances/${encodeURIComponent(attendanceId)}`;
+	} else if (operation === 'inbound') {
+		body = compactObject({
+			chatwootAccountId: getParameterString(this, 'chatwootAccountId', itemIndex),
+			chatwootConversationId: getParameterString(this, 'chatwootConversationId', itemIndex),
+			messageId: getParameterString(this, 'messageId', itemIndex),
+			inboxId: getParameterString(this, 'inboxId', itemIndex, ''),
+			channel: getParameterString(this, 'channel', itemIndex),
+			occurredAt: getParameterString(this, 'occurredAt', itemIndex),
+			source: getParameterString(this, 'source', itemIndex),
+			tvRef: getParameterString(this, 'tvRef', itemIndex, ''),
+			campaignOrigin: getParameterString(this, 'campaignOrigin', itemIndex, ''),
+			creativeOrigin: getParameterString(this, 'creativeOrigin', itemIndex, ''),
+			contactId: getParameterString(this, 'contactId', itemIndex, ''),
+			initialStatus: getParameterString(this, 'initialStatus', itemIndex),
+		});
+	} else if (operation === 'link') {
+		method = 'PATCH';
+		path = `/attendances/${encodeURIComponent(attendanceId)}`;
+		body = compactObject({
+			version: this.getNodeParameter('attendanceVersion', itemIndex) as number,
+			contactId: getParameterString(this, 'contactId', itemIndex, ''),
+			leadId: getParameterString(this, 'leadId', itemIndex, ''),
+			ownerId: getParameterString(this, 'ownerId', itemIndex, ''),
+			teamId: getParameterString(this, 'teamId', itemIndex, ''),
+		});
+	} else if (['handoff', 'firstResponse', 'close'].includes(operation)) {
+		path = `/attendances/${encodeURIComponent(attendanceId)}/${operation === 'firstResponse' ? 'first-response' : operation}`;
+		const rawVersion = getParameterString(this, 'expectedVersion', itemIndex, '');
+		const version = rawVersion ? Number(rawVersion) : undefined;
+		body = compactObject({
+			eventId: getParameterString(this, 'eventId', itemIndex),
+			occurredAt: getParameterString(this, 'occurredAt', itemIndex),
+			version,
+			...(operation === 'handoff'
+				? {
+						ownerId: getParameterString(this, 'ownerId', itemIndex, ''),
+						teamId: getParameterString(this, 'teamId', itemIndex, ''),
+					}
+				: {}),
+			...(operation === 'firstResponse'
+				? {
+						responderKind: getParameterString(this, 'responderKind', itemIndex),
+						private: this.getNodeParameter('private', itemIndex) as boolean,
+					}
+				: {}),
+			...(operation === 'close' ? { reason: getParameterString(this, 'reason', itemIndex) } : {}),
+		});
+	} else {
+		throw new NodeOperationError(this.getNode(), 'Operação de atendimento não suportada', {
+			itemIndex,
+		});
+	}
+	const response = await tavioApiRequest.call(this, method, path, body);
+	return [asDataObject(simplify ? unwrapResponse(response) : response)];
+}
+
 function resolveIdempotencyKey(
 	this: IExecuteFunctions,
 	itemIndex: number,
@@ -852,6 +945,12 @@ function resolveIdempotencyKey(
 		return '';
 	}
 	const readOperations = new Set(['get', 'getMany', 'search', 'getStages']);
+	if (
+		resource === 'attendance' ||
+		(resource === 'lead' &&
+			['upsert', 'getByExternalId', 'listActiveByContact'].includes(operation))
+	)
+		return '';
 	if (readOperations.has(operation)) return '';
 	if (!isV2(this)) return getParameterString(this, 'idempotencyKey', itemIndex, '');
 	const options = rawParameter(this, 'options', itemIndex, {});
