@@ -44,3 +44,15 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev
+
+      - name: Build image against production n8n version
+        run: docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.40.6 -t n8n-tavio-crm:ci .
+
+      - name: Smoke test node v3 in n8n image
+        run: >-
+          docker run --rm --entrypoint node n8n-tavio-crm:ci -e
+          "const pkg=require('/usr/local/lib/node_modules/n8n/node_modules/n8n-nodes-tavio-crm/package.json');
+          const {TavioCrm}=require('/usr/local/lib/node_modules/n8n/node_modules/n8n-nodes-tavio-crm/dist/nodes/TavioCrm/TavioCrm.node.js');
+          const node=new TavioCrm();
+          if(pkg.version!=='0.2.2'||node.description.defaultVersion!==3)process.exit(1);
+          console.log('n8n '+require('/usr/local/lib/node_modules/n8n/package.json').version+'; node '+pkg.version+'; v3 ok');"

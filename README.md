@@ -8,15 +8,16 @@ com validação HMAC-SHA256.
 
 | Componente      | Versão validada                                                   |
 | --------------- | ----------------------------------------------------------------- |
-| n8n self-hosted | 2.34.5                                                            |
-| `n8n-workflow`  | 2.34.2 (usado pelo n8n 2.34.5)                                    |
-| Node.js         | 22.22 ou superior                                                 |
+| n8n self-hosted | 2.40.6 (imagem de produção observada; validação do node pendente) |
+| `n8n-workflow`  | 2.34.2 nos testes locais; versão da imagem 2.40.6 a conferir      |
+| Node.js         | 22.22 ou superior para build; runtime definido pela imagem n8n    |
 | Tavio CRM API   | `/api/v1` do monorepo; Attendance requer incremento de 2026-09-26 |
 
 O pacote usa somente `n8n-workflow` como peer dependency e não inclui runtime
 externo. O peer permanece aberto para usar a cópia fornecida pelo n8n; os tipos
-e testes de desenvolvimento ficam fixados em `n8n-workflow` 2.34.2, a versão
-resolvida pelo n8n 2.34.5. A implementação foi validada com `@n8n/node-cli`.
+e testes de desenvolvimento ainda ficam fixados em `n8n-workflow` 2.34.2.
+A compatibilidade de execução com o n8n 2.40.6 observado em produção ainda
+precisa de smoke test. A implementação foi validada com `@n8n/node-cli`.
 
 ## Credenciais
 
@@ -232,22 +233,22 @@ credenciais.
 ## Docker e EasyPanel
 
 O `Dockerfile` versionado gera o pacote em um estágio Node 22 Alpine e o instala
-por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.34.5`:
+por padrão sobre a imagem oficial exata `docker.n8n.io/n8nio/n8n:2.40.6`:
 
 ```bash
-docker build -t n8n-tavio-crm:2.34.5-0.2.2-COMMIT .
+docker build -t n8n-tavio-crm:2.40.6-0.2.2-COMMIT .
 ```
 
 Se `docker.n8n.io` responder HTTP 429, preserve a mesma versão e use a imagem
 espelhada no Docker Hub por meio do argumento `N8N_IMAGE`:
 
 ```bash
-docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.34.5 -t n8n-tavio-crm:2.34.5-0.2.2-COMMIT .
+docker build --build-arg N8N_IMAGE=docker.io/n8nio/n8n:2.40.6 -t n8n-tavio-crm:2.40.6-0.2.2-COMMIT .
 ```
 
 No EasyPanel, use este repositório e o `Dockerfile` da raiz para construir uma
 imagem própria. Aponte o serviço principal e todos os workers n8n para a mesma
-imagem imutável `n8n-tavio-crm:2.34.5-0.2.2-COMMIT`; uma mistura de versões entre main
+imagem imutável `n8n-tavio-crm:2.40.6-0.2.2-COMMIT`; uma mistura de versões entre main
 e workers não é suportada. Preserve integralmente o banco, os volumes, o
 domínio, todas as variáveis existentes e, em especial, `N8N_ENCRYPTION_KEY`.
 Não recrie nem limpe esses recursos durante a troca da imagem. Não é necessário
